@@ -1,13 +1,10 @@
-import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
-import 'package:weather_app/hourly_weather_forecast_item.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:weather_app/bloc/weather_bloc.dart';
 
-import 'additional_info_item.dart';
-import 'confidential_keys.dart';
+import '../widgets/additional_info_item.dart';
 
 class WeatherScreen extends StatefulWidget {
   const WeatherScreen({super.key});
@@ -17,28 +14,11 @@ class WeatherScreen extends StatefulWidget {
 }
 
 class _WeatherScreenState extends State<WeatherScreen> {
-  late Future<Map<String, dynamic>> weather;
   @override
   void initState() {
     super.initState();
-    weather = getCurrentWeather();
-  }
-
-  Future<Map<String, dynamic>> getCurrentWeather() async {
-    try {
-      String cityName = 'Bhubaneswar';
-      final res = await http.get(Uri.parse(
-          'https://api.openweathermap.org/data/2.5/forecast?q=$cityName&appid=$apiKey'));
-
-      final data = jsonDecode(res.body);
-
-      if (data['cod'] != '200') {
-        throw 'An unexpected error occurred';
-      }
-      return data;
-    } catch (e) {
-      throw e.toString();
-    }
+    // adding WeatherFetched event to WeatherBloc
+    context.read<WeatherBloc>().add(WeatherFetched());
   }
 
   @override
@@ -53,36 +33,38 @@ class _WeatherScreenState extends State<WeatherScreen> {
         actions: [
           IconButton(
               onPressed: () {
-                setState(() {
-                  weather = getCurrentWeather();
-                });
+                context.read<WeatherBloc>().add(WeatherFetched());
               },
               icon: const Icon(Icons.refresh))
         ],
       ),
-      body: FutureBuilder(
-        future: weather,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: BlocBuilder<WeatherBloc, WeatherState>(
+        builder: (context, state) {
+          // if (snapshot.connectionState == ConnectionState.waiting) {
+          //   return const Center(child: CircularProgressIndicator.adaptive());
+          // }
+
+          // if (snapshot.hasError) {
+          //   return Center(child: Text(snapshot.error.toString()));
+          // }
+
+          if (state is WeatherFailure) {
+            return Center(child: Text(state.error));
+          }
+
+          if (state is! WeatherSuccess) {
             return const Center(child: CircularProgressIndicator.adaptive());
           }
 
-          if (snapshot.hasError) {
-            return Center(child: Text(snapshot.error.toString()));
-          }
+          final data = state.weather;
 
-          final data = snapshot.data!;
+          final currentTemp = data.currentTemp;
 
-          final currentWeatherData = data['list'][0];
+          final currentSky = data.currentSky;
 
-          final currentTemp =
-              (currentWeatherData['main']['temp'] - 273.15).round();
-
-          final currentSky = currentWeatherData['weather'][0]['main'];
-
-          final currentHumidity = currentWeatherData['main']['humidity'];
-          final currentWindSpeed = currentWeatherData['wind']['speed'];
-          final currentPressure = currentWeatherData['main']['pressure'];
+          final currentHumidity = data.currentHumidity;
+          final currentWindSpeed = data.currentWindSpeed;
+          final currentPressure = data.currentPressure;
 
           return Padding(
             padding: const EdgeInsets.all(16.0),
@@ -101,17 +83,17 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                       child: Padding(
-                        padding: EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.all(16.0),
                         child: Column(
                           children: [
                             Text(
                               '$currentTemp °C',
-                              style: TextStyle(
+                              style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold),
                             ),
-                            SizedBox(
+                            const SizedBox(
                               height: 16,
                             ),
                             Icon(
@@ -119,12 +101,12 @@ class _WeatherScreenState extends State<WeatherScreen> {
                                     ? Icons.cloud
                                     : Icons.sunny,
                                 size: 64),
-                            SizedBox(
+                            const SizedBox(
                               height: 16,
                             ),
                             Text(
                               currentSky,
-                              style: TextStyle(
+                              style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
                                   fontWeight: FontWeight.normal),
@@ -136,56 +118,56 @@ class _WeatherScreenState extends State<WeatherScreen> {
                   ),
                 ),
               ),
-              SizedBox(
+              const SizedBox(
                 height: 20,
               ),
               //weather forecast
-              Text(
+              const Text(
                 'Hourly Forecast',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold),
               ),
-              SizedBox(
+              const SizedBox(
                 height: 6,
               ),
 
-              SizedBox(
-                height: 140,
-                child: ListView.builder(
-                  itemCount: 5,
-                  scrollDirection: Axis.horizontal,
-                  itemBuilder: (context, index) {
-                    final hourlyWeatherData = data['list'][index + 1];
-                    final hourlyTime =
-                        DateTime.parse(hourlyWeatherData['dt_txt']);
-                    final hourlyTemp =
-                        (hourlyWeatherData['main']['temp'] - 273.15).round();
-                    final hourlySky = hourlyWeatherData['weather'][0]['main'];
+              // SizedBox(
+              //   height: 140,
+              //   child: ListView.builder(
+              //     itemCount: 5,
+              //     scrollDirection: Axis.horizontal,
+              //     itemBuilder: (context, index) {
+              //       final hourlyWeatherData = data['list'][index + 1];
+              //       final hourlyTime =
+              //           DateTime.parse(hourlyWeatherData['dt_txt']);
+              //       final hourlyTemp =
+              //           (hourlyWeatherData['main']['temp'] - 273.15).round();
+              //       final hourlySky = hourlyWeatherData['weather'][0]['main'];
 
-                    return HourlyWeatherForecastItem(
-                      time: DateFormat.j().format(hourlyTime),
-                      temp: hourlyTemp.toString(),
-                      icon: hourlySky == "Clouds" || hourlySky == "Rain"
-                          ? Icons.cloud
-                          : Icons.sunny,
-                    );
-                  },
-                ),
-              ),
-              SizedBox(
+              //       return HourlyWeatherForecastItem(
+              //         time: DateFormat.j().format(hourlyTime),
+              //         temp: hourlyTemp.toString(),
+              //         icon: hourlySky == "Clouds" || hourlySky == "Rain"
+              //             ? Icons.cloud
+              //             : Icons.sunny,
+              //       );
+              //     },
+              //   ),
+              // ),
+              const SizedBox(
                 height: 20,
               ),
               //additional info
-              Text(
+              const Text(
                 'Additional Infomation',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold),
               ),
-              SizedBox(
+              const SizedBox(
                 height: 6,
               ),
               Row(
