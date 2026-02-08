@@ -1,4 +1,10 @@
 import 'dart:convert';
+//       final hourlyWeatherData = data['list'][index + 1];
+//       final hourlyTime =
+//           DateTime.parse(hourlyWeatherData['dt_txt']);
+//       final hourlyTemp =
+//           (hourlyWeatherData['main']['temp'] - 273.15).round();
+//       final hourlySky = hourlyWeatherData['weather'][0]['main'];
 
 class WeatherModel {
   final double currentTemp;
@@ -6,6 +12,7 @@ class WeatherModel {
   final double currentHumidity;
   final double currentWindSpeed;
   final double currentPressure;
+  final Map<String, dynamic> hourlyWeatherData;
 
   WeatherModel({
     required this.currentTemp,
@@ -13,6 +20,7 @@ class WeatherModel {
     required this.currentHumidity,
     required this.currentWindSpeed,
     required this.currentPressure,
+    required this.hourlyWeatherData,
   });
 
   WeatherModel copyWith({
@@ -84,4 +92,16 @@ class WeatherModel {
         currentWindSpeed.hashCode ^
         currentPressure.hashCode;
   }
+}
+
+class HourlyWeatherData {
+  final DateTime hourlyTime;
+  final double hourlyTemp;
+  final double hourlySky;
+
+  HourlyWeatherData({
+    required this.hourlyTime,
+    required this.hourlyTemp,
+    required this.hourlySky,
+  });
 }
